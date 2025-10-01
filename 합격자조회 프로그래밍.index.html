@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>합격자 조회</title>
+  <style>
+    body{font-family:Apple SD Gothic Neo,맑은고딕,Arial;padding:20px}
+    table{border-collapse:collapse;width:100%;max-width:800px}
+    th,td{border:1px solid #ddd;padding:8px;text-align:left}
+    th{background:#f4f4f4}
+    .passed{color:green;font-weight:600}
+    .failed{color:#999}
+    input{padding:8px;width:100%;max-width:300px;margin-bottom:12px}
+  </style>
+</head>
+<body>
+  <h2>수강생 합격자 조회</h2>
+  <p>응시번호 또는 이름 일부로 검색하세요. 개인정보 유출 주의.</p>
+  <input id="q" placeholder="응시번호 / 이름 검색" />
+  <div id="result">로딩 중…</div>
+
+<script>
+const CSV_URL = "SHEET_CSV_URL"; // <-- 여기에 공개된 스프레드시트 CSV 링크 넣기
+
+async function loadData(){
+  const res = await fetch(CSV_URL);
+  const text = await res.text();
+  const rows = text.trim().split('\n').map(r=>r.split(','));
+  const headers = rows.shift().map(h=>h.replace(/(^"|"$)/g,''));
+  const data = rows.map(r=>{
+    const obj = {};
+    r.forEach((c,i)=> obj[headers[i]] = (c||'').replace(/(^"|"$)/g,''));
+    return obj;
+  });
+  return {headers,data};
+}
+
+function renderTable(headers, rows){
+  if(rows.length===0) return '<p>검색 결과가 없습니다.</p>';
+  let html = '<table><thead><tr>';
+  headers.forEach(h=> html += `<th>${h}</th>`);
+  html += '</tr></thead><tbody>';
+  rows.forEach(r=>{
+    html += '<tr>';
+    headers.forEach(h=>{
+      let v = r[h] ?? '';
+      if(h.toLowerCase().includes('합격')) {
+        v = v.toLowerCase().includes('y') || v.includes('합격') ? `<span class="passed">${v}</span>` : `<span class="failed">${v}</span>`;
+      }
+      html += `<td>${v}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  return html;
+}
+
+(async ()=>{
+  const {headers,data} = await loadData();
+  const qInput = document.getElementById('q');
+  const result = document.getElementById('result');
+
+  function update(){
+    const q = qInput.value.trim().toLowerCase();
+    const filtered = q ? data.filter(r => Object.values(r).some(v => v.toLowerCase().includes(q))) : data;
+    result.innerHTML = renderTable(headers, filtered);
+  }
+
+  qInput.addEventListener('input', update);
+  update();
+})();
+</script>
+</body>
+</html>
